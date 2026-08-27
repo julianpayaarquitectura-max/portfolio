@@ -780,7 +780,13 @@
   window.addEventListener('scroll', checkInfiniteScroll);
 
   let resizeTimer;
+  let lastWidth = window.innerWidth;
   window.addEventListener('resize', () => {
+    // en mobile, Safari dispara "resize" al ocultar/mostrar la barra de direcciones
+    // durante el scroll (solo cambia el alto) - ignoramos eso, solo nos importa el ancho
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       if (mode === 'home') {
