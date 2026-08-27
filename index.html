@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pieza 3 — Integracion completa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Anton&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cursor-triangle: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpolygon%20points%3D%2212.9%2C3.1%209.8%2C14.8%201.2%2C6.2%22%20fill%3D%22white%22%20stroke%3D%22black%22%20stroke-width%3D%221%22/%3E%3C/svg%3E") 8 8, auto;
+    --cursor-triangle-dark: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpolygon%20points%3D%2212.9%2C3.1%209.8%2C14.8%201.2%2C6.2%22%20fill%3D%22black%22/%3E%3C/svg%3E") 8 8, auto;
+    --bg: #0a0a0a;
+    --fg: #ffffff;
+    --gap: 80px;
+    --cols: 6;
+    --window-width: 420px;
+    --win-bg: rgba(255, 255, 255, 0.5);
+    --win-border: rgba(0,0,0,0.12);
+    --win-fg: #111111;
+    --win-fg-dim: rgba(0,0,0,0.55);
+    --win-fg-mid: rgba(0,0,0,0.75);
+    --win-divider: rgba(0,0,0,0.1);
+    --win-shine: rgba(0,0,0,0.12);
+    --shuffle-bg: rgba(255, 255, 255, 0.5);
+    --shuffle-fg: #111111;
+  }
+
+  html.light-mode {
+    --bg: #ffffff;
+    --fg: #000000;
+    --win-bg: rgba(18, 18, 18, 0.5);
+    --win-border: rgba(255,255,255,0.14);
+    --win-fg: #f2f2f2;
+    --win-fg-dim: rgba(255,255,255,0.55);
+    --win-fg-mid: rgba(255,255,255,0.75);
+    --win-divider: rgba(255,255,255,0.1);
+    --win-shine: rgba(255,255,255,0.22);
+    --shuffle-bg: rgba(20, 20, 20, 0.5);
+    --shuffle-fg: #fafafa;
+  }
+
+  html, body {
+    transition: background-color 0.35s ease;
+    cursor: var(--cursor-triangle);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Space Grotesk', sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* ---- HEADER ---- */
+  .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0 16px;
+    z-index: 60;
+    pointer-events: none;
+  }
+  .header .dark-toggle {
+    pointer-events: auto;
+  }
+
+  .dark-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: var(--shuffle-bg);
+    color: var(--shuffle-fg);
+    font-size: 11px;
+    cursor: var(--cursor-triangle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.4s ease, background 0.35s ease, color 0.35s ease;
+  }
+  .dark-toggle.visible { opacity: 1; }
+  html.light-mode .dark-toggle { background: var(--shuffle-bg); }
+
+  .counter {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--fg);
+    opacity: 0;
+    transition: opacity 0.4s ease, color 0.35s ease;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .counter.visible { opacity: 0.6; }
+  .counter-label {
+    letter-spacing: 0.05em;
+  }
+
+  .loading-caret {
+    display: inline-block;
+    width: 6px;
+    height: 12px;
+    background: var(--fg);
+    margin-left: 2px;
+    animation: blink 0.9s steps(1) infinite;
+    vertical-align: text-bottom;
+  }
+
+  @keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  @media (max-width: 640px) {
+    .counter { display: none; }
+  }
+
+  .barcode-btn {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 60;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 26px;
+    background:
+      linear-gradient(180deg, var(--win-shine), rgba(255,255,255,0) 45%),
+      var(--shuffle-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--shuffle-fg);
+    cursor: var(--cursor-triangle);
+    opacity: 0;
+    transition: opacity 0.4s ease, background 0.35s ease, color 0.35s ease;
+  }
+  .barcode-btn.visible { opacity: 1; }
+  .barcode-btn svg {
+    width: 62px;
+    height: 25px;
+    display: block;
+  }
+  .barcode-btn:active { transform: scale(0.96); }
+
+  .photo-tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 200;
+    pointer-events: none;
+    transform: translate(-9999px, -9999px);
+    background:
+      linear-gradient(180deg, var(--win-shine), rgba(255,255,255,0) 45%),
+      var(--shuffle-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--shuffle-fg);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.15s ease, background 0.35s ease, color 0.35s ease;
+  }
+  .photo-tooltip.visible { opacity: 1; }
+
+  @media (max-width: 640px) {
+    .photo-tooltip { display: none; }
+  }
+
+  .gallery-wrap {
+    margin-top: 80px;
+    transition: opacity 0.6s ease;
+    opacity: 0;
+  }
+  .gallery-wrap.revealed {
+    opacity: 1;
+  }
+
+  .page-content {
+    transition: filter 0.25s ease;
+  }
+  .page-content.blurred {
+    filter: blur(14px);
+  }
+
+  /* ---- RETICULA ---- */
+  .gallery {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gap);
+    padding: 0 var(--gap);
+    width: 100%;
+  }
+
+  .footer {
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--fg);
+    opacity: 0.45;
+    padding: 60px 16px 40px 16px;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .cell {
+    display: flex;
+    flex-direction: column;
+    cursor: default;
+  }
+
+  .cell.clickable { cursor: var(--cursor-triangle); }
+
+  .cell .photo {
+    overflow: hidden;
+    background: #eee;
+    width: 100%;
+    height: 100%;
+    cursor: var(--cursor-triangle-dark);
+  }
+
+  .cell .photo img,
+  .cell .photo video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    transition: opacity 0.18s ease;
+  }
+
+  .cell.fading .photo img,
+  .cell.fading .photo video { opacity: 0; }
+
+  .cell .meta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding-top: 4px;
+  }
+
+  .cell .num {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--fg);
+    line-height: 1;
+  }
+
+  .cell .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  @media (max-width: 640px) {
+    :root { --cols: 2; --gap: 16px; }
+  }
+  @media (min-width: 641px) and (max-width: 1024px) {
+    :root { --cols: 3; }
+  }
+
+  /* ---- VENTANA MACOS ---- */
+  .mac-window {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    width: var(--window-width);
+    max-height: calc(100vh - 32px);
+    background: var(--win-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--win-border);
+    border-radius: 18px;
+    overflow: hidden;
+    font-family: 'Inter', sans-serif;
+    color: var(--win-fg);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    transition: height 0.3s ease;
+  }
+
+  .mac-titlebar {
+    height: 44px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    cursor: var(--cursor-triangle);
+    user-select: none;
+    border-bottom: 1px solid var(--win-divider);
+  }
+
+  .dot-traffic {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .dot-traffic.red { background: #ff5f57; }
+  .dot-traffic.yellow { background: #febc2e; }
+  .dot-traffic.green { background: #28c840; }
+
+  .file-icon {
+    margin-left: 8px;
+    width: 14px;
+    height: 14px;
+    opacity: 0.75;
+    flex-shrink: 0;
+  }
+
+  .mac-filename {
+    font-size: 13px;
+    color: var(--win-fg-mid);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+
+  .mac-body {
+    padding: 20px 18px 22px 18px;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-y: auto;
+  }
+
+  .mac-body.mac-loading,
+  .mac-body.mac-cv,
+  .mac-body.mac-project { display: none; }
+
+  .mac-window.show-loading .mac-body:not(.mac-loading) { display: none; }
+  .mac-window.show-loading .mac-body.mac-loading { display: block; }
+
+  .mac-window.show-cv .mac-body:not(.mac-cv) { display: none; }
+  .mac-window.show-cv .mac-body.mac-cv { display: block; }
+  .mac-window.show-cv { height: calc(100vh - 32px); }
+  .mac-window.show-cv .mac-body.mac-cv { flex: 1; overflow-y: auto; }
+
+  .mac-window.show-project .mac-body:not(.mac-project) { display: none; }
+  .mac-window.show-project .mac-body.mac-project { display: block; }
+
+  .mac-window.collapsed { height: auto !important; }
+  .mac-window.collapsed .mac-body { display: none !important; }
+  .mac-window.collapsed .mac-titlebar { border-bottom: none; }
+
+  .mac-section {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 12px;
+    padding: 14px 0;
+  }
+  .mac-section:first-child { padding-top: 0; }
+  .mac-section:last-child { padding-bottom: 0; }
+  .mac-section + .mac-section { border-top: 1px solid var(--win-divider); }
+
+  .mac-label {
+    font-size: 13px;
+    color: var(--win-fg-dim);
+    font-weight: 500;
+    padding-top: 1px;
+  }
+
+  .mac-value a {
+    display: block;
+    color: var(--win-fg);
+    text-decoration: none;
+    margin-bottom: 6px;
+  }
+  .mac-value a:last-child { margin-bottom: 0; }
+  .mac-value a:hover { color: var(--win-fg-dim); }
+
+  .project-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  .cv-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .cv-label-static {
+    font-size: 13px;
+    color: var(--win-fg-dim);
+    font-weight: 500;
+  }
+  .cv-close {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--win-fg-mid);
+    text-decoration: none;
+    cursor: var(--cursor-triangle);
+  }
+  .cv-close:hover { color: var(--win-fg); }
+
+  .cv-text p { margin: 0 0 8px 0; }
+  .cv-text p:last-child { margin-bottom: 0; }
+  .cv-text strong { font-weight: 600; }
+
+  .tok-key, .tok-fn, .tok-str { color: var(--win-fg); }
+  .tok-com { color: var(--win-fg-dim); }
+
+  @media (max-width: 640px) {
+    :root { --window-width: calc(100vw - 32px); }
+
+    .header {
+      top: auto;
+      bottom: 16px;
+      left: auto;
+      right: 16px;
+      height: auto;
+      width: auto;
+      padding: 0;
+    }
+
+    .gallery-wrap {
+      margin-top: 72px; /* encaja justo con la barra colapsada (16px offset + 44px alto + respiro) */
+    }
+  }
+
+  /* ---- LIGHTBOX ---- */
+  .lightbox-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox-backdrop.open { display: flex; }
+
+  .lightbox-img {
+    max-width: 82vw;
+    max-height: 86vh;
+    object-fit: contain;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+    cursor: var(--cursor-triangle-dark);
+  }
+</style>
+</head>
+<body>
+
+<div class="page-content" id="pageContent">
+<div class="header">
+  <span class="counter" id="counter">2001 <span class="counter-label"></span><span class="loading-caret"></span></span>
+  <button class="dark-toggle" id="darkToggle" title="Light mode">○</button>
+</div>
+
+<button class="barcode-btn" id="barcodeBtn" title="Store — coming soon">
+  <svg viewBox="0 0 60 24" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="2" width="2" height="20" fill="currentColor"/>
+    <rect x="4" y="2" width="1" height="20" fill="currentColor"/>
+    <rect x="7" y="2" width="3" height="20" fill="currentColor"/>
+    <rect x="12" y="2" width="1" height="20" fill="currentColor"/>
+    <rect x="15" y="2" width="2" height="20" fill="currentColor"/>
+    <rect x="19" y="2" width="1" height="20" fill="currentColor"/>
+    <rect x="22" y="2" width="3" height="20" fill="currentColor"/>
+    <rect x="27" y="2" width="1" height="20" fill="currentColor"/>
+    <rect x="30" y="2" width="2" height="20" fill="currentColor"/>
+    <rect x="34" y="2" width="1" height="20" fill="currentColor"/>
+    <rect x="37" y="2" width="1" height="20" fill="currentColor"/>
+    <rect x="40" y="2" width="3" height="20" fill="currentColor"/>
+    <rect x="45" y="2" width="1" height="20" fill="currentColor"/>
+    <rect x="48" y="2" width="2" height="20" fill="currentColor"/>
+    <rect x="52" y="2" width="1" height="20" fill="currentColor"/>
+    <rect x="55" y="2" width="3" height="20" fill="currentColor"/>
+  </svg>
+</button>
+
+<div class="gallery-wrap" id="galleryWrap">
+  <div class="gallery" id="gallery"></div>
+  <div class="footer">2027 · julianpayaarquitectura@gmail.com · all rights reserved</div>
+</div>
+
+<div class="mac-window show-loading" id="macWindow">
+  <div class="mac-titlebar" id="macTitlebar">
+    <span class="dot-traffic red"></span>
+    <span class="dot-traffic yellow"></span>
+    <span class="dot-traffic green"></span>
+    <svg class="file-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 2h8l6 6v14H6V2z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M14 2v6h6" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+    </svg>
+    <span class="mac-filename">about.me</span>
+  </div>
+
+  <!-- ESTADO LOADING -->
+  <div class="mac-body mac-loading" id="loadingBody"></div>
+
+  <!-- ESTADO BASE -->
+  <div class="mac-body">
+    <div class="mac-section">
+      <div class="mac-label">Contact</div>
+      <div class="mac-value">
+        <a href="mailto:julianpayaarquitectura@gmail.com">julianpayaarquitectura@gmail.com</a>
+        <a href="https://www.linkedin.com/in/juli%C3%A1n-pay%C3%A1-mart%C3%ADnez-11bb3220b/" target="_blank">LinkedIn</a>
+      </div>
+    </div>
+    <div class="mac-section">
+      <div class="mac-label">CV</div>
+      <div class="mac-value"><a href="#" id="openCV">View CV</a></div>
+    </div>
+    <div class="mac-section">
+      <div class="mac-label">Work</div>
+      <div class="mac-value" id="projectLinksWrap"></div>
+    </div>
+  </div>
+
+  <!-- ESTADO CV -->
+  <div class="mac-body mac-cv">
+    <div class="cv-topline">
+      <span class="cv-label-static">CV</span>
+      <a href="#" id="closeCV" class="cv-close">CLOSE</a>
+    </div>
+    <div class="mac-section">
+      <div class="mac-label">Education</div>
+      <div class="mac-value cv-text">
+        <p><strong>BA in Fundamentals of Architecture</strong><br>Universitat Politècnica de València, 2019–2024<br>Honours in Design Studio, final year</p>
+        <p><strong>Architecture Typology M.Sc.</strong><br>Technische Universität Berlin, 2022–2023</p>
+        <p><strong>Master's in Architecture</strong><br>Universitat Politècnica de València, 2024–2025<br>Thesis with Honours</p>
+      </div>
+    </div>
+    <div class="mac-section">
+      <div class="mac-label">Competitions</div>
+      <div class="mac-value cv-text">
+        <p><strong>1st place</strong> — Public housing tender, 33 industrialised dwellings, Torrent (Valencia) — Plan VIVE Dana, Generalitat Valenciana / EVHA</p>
+        <p><strong>4th place</strong> — International competition, Elche Congress Centre (Diputación de Alicante)</p>
+        <p><strong>BER Airport toilet proposals</strong> — Independent competition entry proposing new restroom facilities for Berlin Brandenburg Airport (BER)</p>
+      </div>
+    </div>
+    <div class="mac-section">
+      <div class="mac-label">Experience</div>
+      <div class="mac-value cv-text">
+        <p><strong>Superestudio</strong> (Valencia) — Aug 2024 – Mar 2025<br>Full graphic production: drawings, renders, social media posts, website<br>Concept building, basic project and execution project for a single-family house</p>
+        <p><strong>Sonder</strong> (Streetwear brand)<br>Graphic design and product development</p>
+        <p><strong>Orggeil</strong> (Streetwear brand)<br>Pop-up concept design</p>
+      </div>
+    </div>
+    <div class="mac-section">
+      <div class="mac-label">Languages</div>
+      <div class="mac-value cv-text"><p>English (native)<br>Spanish (native)<br>German (B2)</p></div>
+    </div>
+    <div class="mac-section">
+      <div class="mac-label">Software</div>
+      <div class="mac-value cv-text"><p><strong>Advanced:</strong> AutoCAD, Adobe Illustrator, Adobe InDesign, Adobe Photoshop, Adobe Lightroom<br><strong>Intermediate:</strong> Rhino, D5 Render, After Effects<br><strong>Basic:</strong> Revit</p></div>
+    </div>
+  </div>
+
+  <!-- ESTADO PROYECTO -->
+  <div class="mac-body mac-project">
+    <div class="cv-topline">
+      <span class="cv-label-static" id="projectTitle">Proyecto</span>
+      <a href="#" id="closeProject" class="cv-close">HOME</a>
+    </div>
+    <div class="mac-section"><div class="mac-label">Year</div><div class="mac-value cv-text"><p id="projYear">—</p></div></div>
+    <div class="mac-section"><div class="mac-label">Role</div><div class="mac-value cv-text"><p id="projRol">—</p></div></div>
+    <div class="mac-section"><div class="mac-label">Description</div><div class="mac-value cv-text"><p id="projDesc">—</p></div></div>
+  </div>
+</div>
+</div>
+
+<div class="photo-tooltip" id="photoTooltip"></div>
+
+<div class="lightbox-backdrop" id="lightboxBackdrop">
+  <img class="lightbox-img" id="lightboxImg" src="">
+</div>
+
+<script>
+  // ---- DATOS ----
+  const LIBRARY = [{"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/climate_shelter_floor.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/climate_shelter_floor.jpg", "ratio": 1.4502087060226596, "num": 1, "project": null, "title": "climate shelter floor", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/video/upload/f_auto,q_auto/REEl_laser.mp4", "srcLarge": "https://res.cloudinary.com/duqhkltc/video/upload/f_auto,q_auto/REEl_laser.mp4", "ratio": 1.5, "num": 2, "project": null, "title": "REEl laser", "type": "video"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/welness_exterior_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/welness_exterior_2.jpg", "ratio": 1.6664785553047403, "num": 3, "project": null, "title": "welness exterior 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/welness_exterior.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/welness_exterior.jpg", "ratio": 0.6657789613848203, "num": 4, "project": null, "title": "welness exterior", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/welness_interior.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/welness_interior.jpg", "ratio": 0.800640512409928, "num": 5, "project": null, "title": "welness interior", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/virtual_model_coru%C3%B1a.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/virtual_model_coru%C3%B1a.jpg", "ratio": 1.25, "num": 6, "project": null, "title": "virtual model coru\u00f1a", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/market_.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/market_.jpg", "ratio": 1.5772179627601315, "num": 7, "project": 1, "title": "market", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/utiel_render.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/utiel_render.jpg", "ratio": 1.1067708333333333, "num": 8, "project": null, "title": "utiel render", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/site_puzzle.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/site_puzzle.jpg", "ratio": 1.4485981308411215, "num": 9, "project": null, "title": "site puzzle", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/IMG_7554.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/IMG_7554.jpg", "ratio": 1.0, "num": 10, "project": null, "title": "IMG 7554", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/urban_situations.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/urban_situations.jpg", "ratio": 0.9709969788519638, "num": 11, "project": 1, "title": "urban situations", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/urban_situations_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/urban_situations_2.jpg", "ratio": 0.9709969788519638, "num": 12, "project": 1, "title": "urban situations 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/investigation_mock.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/investigation_mock.jpg", "ratio": 1.5, "num": 13, "project": null, "title": "investigation mock", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/sketch_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/sketch_2.jpg", "ratio": 1.3613496932515337, "num": 14, "project": null, "title": "sketch 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/market_stall_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/market_stall_2.jpg", "ratio": 0.7069555302166477, "num": 15, "project": 1, "title": "market stall 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/private_dwelling.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/private_dwelling.jpg", "ratio": 0.9058064516129032, "num": 16, "project": null, "title": "private dwelling", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/ciudad_cruce_detail.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/ciudad_cruce_detail.jpg", "ratio": 0.7069555302166477, "num": 17, "project": 1, "title": "ciudad cruce detail", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/BER_4.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/BER_4.jpg", "ratio": 0.9909027291812457, "num": 18, "project": null, "title": "BER 4", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/coru%C3%B1a_interior_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/coru%C3%B1a_interior_2.jpg", "ratio": 0.8809523809523809, "num": 19, "project": null, "title": "coru\u00f1a interior 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/img-01.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/img-01.jpg", "ratio": 0.8035928143712575, "num": 20, "project": null, "title": "img-01", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/cf_interior.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/cf_interior.jpg", "ratio": 1.2326332794830372, "num": 21, "project": null, "title": "cf interior", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/explorations_.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/explorations_.jpg", "ratio": 1.0, "num": 22, "project": null, "title": "explorations", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/collage_3.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/collage_3.jpg", "ratio": 1.2724474089276552, "num": 23, "project": null, "title": "collage 3", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/detail_stall_6.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/detail_stall_6.jpg", "ratio": 1.0034632034632034, "num": 24, "project": 1, "title": "detail stall 6", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/detail_stall_1.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/detail_stall_1.jpg", "ratio": 1.0034632034632034, "num": 25, "project": 1, "title": "detail stall 1", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/ciudad_cruce.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/ciudad_cruce.jpg", "ratio": 1.5772179627601315, "num": 26, "project": 1, "title": "ciudad cruce", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/ciudad_cruce_urban.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/ciudad_cruce_urban.jpg", "ratio": 0.9997029114676174, "num": 27, "project": 1, "title": "ciudad cruce urban", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/climate_shelter_sketches.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/climate_shelter_sketches.jpg", "ratio": 1.9209914794732765, "num": 28, "project": null, "title": "climate shelter sketches", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/climate_shelter_sketch.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/climate_shelter_sketch.jpg", "ratio": 1.1775862068965517, "num": 29, "project": null, "title": "climate shelter sketch", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/climate_shelter_section.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/climate_shelter_section.jpg", "ratio": 3.8275058275058274, "num": 30, "project": null, "title": "climate shelter section", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/ciudad_cruce_section2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/ciudad_cruce_section2.jpg", "ratio": 2.9769427839453457, "num": 31, "project": null, "title": "ciudad cruce section2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/BER_3.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/BER_3.jpg", "ratio": 0.9909027291812457, "num": 32, "project": null, "title": "BER 3", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/ciudad_cruce_section3.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/ciudad_cruce_section3.jpg", "ratio": 3.1307865168539326, "num": 33, "project": null, "title": "ciudad cruce section3", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/ciudad_cruce_section.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/ciudad_cruce_section.jpg", "ratio": 3.1307865168539326, "num": 34, "project": null, "title": "ciudad cruce section", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/arquia_collage_1.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/arquia_collage_1.jpg", "ratio": 1.414516129032258, "num": 35, "project": null, "title": "arquia collage 1", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/video/upload/f_auto,q_auto/cadencia_productiva_.mp4", "srcLarge": "https://res.cloudinary.com/duqhkltc/video/upload/f_auto,q_auto/cadencia_productiva_.mp4", "ratio": 1.5, "num": 36, "project": null, "title": "cadencia productiva", "type": "video"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/arquia_collage_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/arquia_collage_2.jpg", "ratio": 1.414516129032258, "num": 37, "project": null, "title": "arquia collage 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/BER_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/BER_2.jpg", "ratio": 0.9909027291812457, "num": 38, "project": null, "title": "BER 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/arquia_collage_4.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/arquia_collage_4.jpg", "ratio": 1.414516129032258, "num": 39, "project": null, "title": "arquia collage 4", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/arquia_collage_3.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/arquia_collage_3.jpg", "ratio": 1.414516129032258, "num": 40, "project": null, "title": "arquia collage 3", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/BER_1.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/BER_1.jpg", "ratio": 0.9909027291812457, "num": 41, "project": null, "title": "BER 1", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/BER_.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/BER_.jpg", "ratio": 0.9902097902097902, "num": 42, "project": null, "title": "BER", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/arquia_axo.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/arquia_axo.jpg", "ratio": 0.8753280839895013, "num": 43, "project": null, "title": "arquia axo", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/video/upload/f_auto,q_auto/daraxa_reel.mp4", "srcLarge": "https://res.cloudinary.com/duqhkltc/video/upload/f_auto,q_auto/daraxa_reel.mp4", "ratio": 1.5, "num": 44, "project": null, "title": "daraxa reel", "type": "video"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/girasol_interior_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/girasol_interior_2.jpg", "ratio": 1.783387622149837, "num": 45, "project": 3, "title": "girasol interior 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/territorial_plan.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/territorial_plan.jpg", "ratio": 0.7071155009070752, "num": 46, "project": 1, "title": "territorial plan", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/IMG_7551.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/IMG_7551.jpg", "ratio": 1.0, "num": 47, "project": null, "title": "IMG 7551", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/lamp_3.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/lamp_3.jpg", "ratio": 0.75, "num": 48, "project": null, "title": "lamp 3", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/food_market_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/food_market_2.jpg", "ratio": 1.4274370208105147, "num": 49, "project": 1, "title": "food market 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/daraxa_.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/daraxa_.jpg", "ratio": 1.7769880053309641, "num": 50, "project": 2, "title": "daraxa", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/rural_hotel_interior.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/rural_hotel_interior.jpg", "ratio": 1.1414405010438413, "num": 51, "project": null, "title": "rural hotel interior", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/detail_collage.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/detail_collage.jpg", "ratio": 1.0, "num": 52, "project": null, "title": "detail collage", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/diagrams__copy.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/diagrams__copy.jpg", "ratio": 0.7069555302166477, "num": 53, "project": 1, "title": "diagrams", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/collage_1.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/collage_1.jpg", "ratio": 1.2724474089276552, "num": 54, "project": null, "title": "collage 1", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/detail_stall_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/detail_stall_2.jpg", "ratio": 1.0034632034632034, "num": 55, "project": 1, "title": "detail stall 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/girasol_entrance.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/girasol_entrance.jpg", "ratio": 0.8274244004171012, "num": 56, "project": 3, "title": "girasol entrance", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/exterior_coru%C3%B1a_1.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/exterior_coru%C3%B1a_1.jpg", "ratio": 0.9990272373540856, "num": 57, "project": null, "title": "exterior coru\u00f1a 1", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/daraxa_auditorium.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/daraxa_auditorium.jpg", "ratio": 1.7777777777777777, "num": 58, "project": 2, "title": "daraxa auditorium", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/market_stall_3.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/market_stall_3.jpg", "ratio": 0.7069555302166477, "num": 59, "project": 1, "title": "market stall 3", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/lamp_.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/lamp_.jpg", "ratio": 0.75, "num": 60, "project": null, "title": "lamp", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/individual_dwelling_.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/individual_dwelling_.jpg", "ratio": 0.8270833333333333, "num": 61, "project": 1, "title": "individual dwelling", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/girasol_facade.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/girasol_facade.jpg", "ratio": 1.0243298040099122, "num": 62, "project": 3, "title": "girasol facade", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/coru%C3%B1a_interior.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/coru%C3%B1a_interior.jpg", "ratio": 1.4729577464788732, "num": 63, "project": null, "title": "coru\u00f1a interior", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/collage_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/collage_2.jpg", "ratio": 1.2724474089276552, "num": 64, "project": null, "title": "collage 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/sketch_.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/sketch_.jpg", "ratio": 1.0, "num": 65, "project": null, "title": "sketch", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/IMG_7550.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/IMG_7550.jpg", "ratio": 1.0, "num": 66, "project": null, "title": "IMG 7550", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/girasol_facade_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/girasol_facade_2.jpg", "ratio": 0.8251727245419045, "num": 67, "project": 3, "title": "girasol facade 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/market_stall_1.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/market_stall_1.jpg", "ratio": 0.7069555302166477, "num": 68, "project": null, "title": "market stall 1", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/girasol_courtyard.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/girasol_courtyard.jpg", "ratio": 1.7200948830904779, "num": 69, "project": 3, "title": "girasol courtyard", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/urban_axo.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/urban_axo.jpg", "ratio": 0.7069555302166477, "num": 70, "project": 1, "title": "urban axo", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/ciudad_cruce_model.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/ciudad_cruce_model.jpg", "ratio": 1.3333333333333333, "num": 71, "project": 1, "title": "ciudad cruce model", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/explorations_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/explorations_2.jpg", "ratio": 1.0, "num": 72, "project": null, "title": "explorations 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/detail_stall_5.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/detail_stall_5.jpg", "ratio": 1.0034632034632034, "num": 73, "project": 1, "title": "detail stall 5", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/detail_stall_3.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/detail_stall_3.jpg", "ratio": 1.0034632034632034, "num": 74, "project": 1, "title": "detail stall 3", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/daraxa_hall.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/daraxa_hall.jpg", "ratio": 0.75, "num": 75, "project": 2, "title": "daraxa hall", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/food_market_.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/food_market_.jpg", "ratio": 1.2584662442648022, "num": 76, "project": 1, "title": "food market", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/daraxa_exterior.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/daraxa_exterior.jpg", "ratio": 1.7777777777777777, "num": 77, "project": 2, "title": "daraxa exterior", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/girasol_interior.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/girasol_interior.jpg", "ratio": 0.8133102852203976, "num": 78, "project": 3, "title": "girasol interior", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/site_anotations.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/site_anotations.jpg", "ratio": 1.4772727272727273, "num": 79, "project": null, "title": "site anotations", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/lamp_axo.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/lamp_axo.jpg", "ratio": 0.6620227038183695, "num": 80, "project": null, "title": "lamp axo", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/girasol_corridor.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/girasol_corridor.jpg", "ratio": 0.7429614181438999, "num": 81, "project": 3, "title": "girasol corridor", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/front.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/front.jpg", "ratio": 0.7069555302166477, "num": 82, "project": null, "title": "front", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/detail_collage_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/detail_collage_2.jpg", "ratio": 1.0, "num": 83, "project": null, "title": "detail collage 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/rural_hotel_exterior.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/rural_hotel_exterior.jpg", "ratio": 0.9713097713097714, "num": 84, "project": null, "title": "rural hotel exterior", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/daraxa_references.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/daraxa_references.jpg", "ratio": 1.0, "num": 85, "project": 2, "title": "daraxa references", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/IMG_7553.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/IMG_7553.jpg", "ratio": 1.0, "num": 86, "project": null, "title": "IMG 7553", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/stool_explorations.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/stool_explorations.jpg", "ratio": 0.75, "num": 87, "project": null, "title": "stool explorations", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/lamp_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/lamp_2.jpg", "ratio": 0.75, "num": 88, "project": null, "title": "lamp 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/ciudad_cruce_dwelling.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/ciudad_cruce_dwelling.jpg", "ratio": 1.4141961231470923, "num": 89, "project": 1, "title": "ciudad cruce dwelling", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/exterior_coru%C3%B1a_2.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/exterior_coru%C3%B1a_2.jpg", "ratio": 1.5064102564102564, "num": 90, "project": null, "title": "exterior coru\u00f1a 2", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/in_between.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/in_between.jpg", "ratio": 1.0, "num": 91, "project": null, "title": "in between", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/corridor_utiel.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/corridor_utiel.jpg", "ratio": 0.947265625, "num": 92, "project": null, "title": "corridor utiel", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/sketch_coru%C3%B1a.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/sketch_coru%C3%B1a.jpg", "ratio": 1.0, "num": 93, "project": null, "title": "sketch coru\u00f1a", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/detail_stall_4.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/detail_stall_4.jpg", "ratio": 1.0034632034632034, "num": 94, "project": 1, "title": "detail stall 4", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/collage_.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/collage_.jpg", "ratio": 1.0, "num": 95, "project": null, "title": "collage", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/arquia_section.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/arquia_section.jpg", "ratio": 1.4515778019586507, "num": 96, "project": null, "title": "arquia section", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/arquia_floor.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/arquia_floor.jpg", "ratio": 2.3189655172413794, "num": 97, "project": null, "title": "arquia floor", "type": "image"}, {"src": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1000,c_limit/addis_int_collage.jpg", "srcLarge": "https://res.cloudinary.com/duqhkltc/image/upload/cs_srgb,f_auto,q_auto,w_1800,c_limit/addis_int_collage.jpg", "ratio": 0.9768258426966292, "num": 98, "project": null, "title": "addis int collage", "type": "image"}];
+  const PROJECT_COLORS = {"1": "#3fb96a", "2": "#ff9d3d", "3": "#4c8dff"};
+  const PROJECTS_META = {"1": {"title": "Ciudad Cruce_Hybrid Building", "year": "2024", "rol": "Author", "desc": "Ciudad Cruce reimagines the meeting point between Valencia's Malilla and Cruz Cubierta neighbourhoods, historically divided by a railway line now buried underground. The project proposes crossing as a strategy of urban stitching: a longitudinal axis following the old railway trace intersects a transversal route linking two public parks, locating a hybrid building at their intersection. Organised around a central courtyard, the building combines a market and public program at ground level with housing above."}, "2": {"title": "Daraxa_Congress Centre", "year": "2025", "rol": "Graphic production", "desc": "Daraxa is a proposal for the new Congress Centre in Elche, taking its name from the historic Mirador de Lindaraja in the Alhambra. The project reinterprets the city's Palmeral \u2014 a UNESCO-protected cultural landscape \u2014 through a woven latticework fa\u00e7ade inspired by traditional palm-leaf craft, filtering Mediterranean light while opening the building to its surroundings. Organised as a hybrid volume around a central hall, it combines an auditorium with exhibition, administrative and public spaces, engaging both the dense urban fabric and the palm grove landscape beyond."}, "3": {"title": "Girasol_Social Housing", "year": "2026", "rol": "Collaborator", "desc": "Girasol is a collective housing proposal for Vic\u00e1lvaro, Madrid, organised around a 45\u00ba rotated grid that gives every dwelling dual orientation and cross ventilation. Rather than designing from the unit, the project works from the room: interchangeable modules of roughly 10m\u00b2 combine into flats of one to three bedrooms, replacing corridors with a central kitchen that distributes the home. Built in cross-laminated timber (CLT), the block wraps a communal courtyard inspired by Madrid's traditional corrala, bringing shared gardens, play areas and social space into the heart of the building."}};
+  const VISIBLE_COUNT = LIBRARY.length; // en home mostramos todas, sin límite
+
+  let mode = 'home'; // 'home' | 'project'
+  let activeProject = null;
+  let currentSet = [];
+  let homeOrder = [];        // orden actual (se reordena con Shuffle)
+  let colEls = [];
+  let colHeights = [];
+  let homeBatchesLoaded = 0; // cuantas "vueltas" completas del array ya se han pintado
+
+  // ---- UTILIDADES ----
+  function shuffleArray(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function pickRandomSet(count) {
+    return shuffleArray(LIBRARY).slice(0, count);
+  }
+  function padNum(n) { return String(n).padStart(2, '0'); }
+
+  // ---- RETICULA ----
+  const gallery = document.getElementById('gallery');
+  const galleryWrap = document.getElementById('galleryWrap');
+  const pageContent = document.getElementById('pageContent');
+
+  function getCols() {
+    return parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cols'));
+  }
+
+  function getGap() {
+    return parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gap'));
+  }
+
+  function createCell(item, colWidth, useLarge) {
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (mode === 'project' ? ' clickable' : '');
+    cell.dataset.title = item.title || '';
+
+    const photo = document.createElement('div');
+    photo.className = 'photo';
+    const imgHeight = colWidth / item.ratio;
+    photo.style.height = imgHeight + 'px';
+
+    const displaySrc = (useLarge && item.srcLarge) ? item.srcLarge : item.src;
+
+    let mediaEl;
+    if (item.type === 'video') {
+      mediaEl = document.createElement('video');
+      mediaEl.src = item.src;
+      mediaEl.autoplay = true;
+      mediaEl.loop = true;
+      mediaEl.muted = true;
+      mediaEl.playsInline = true;
+      mediaEl.style.objectFit = 'contain';
+      mediaEl.addEventListener('loadedmetadata', () => {
+        if (mediaEl.videoWidth && mediaEl.videoHeight) {
+          const realRatio = mediaEl.videoWidth / mediaEl.videoHeight;
+          photo.style.height = (colWidth / realRatio) + 'px';
+        }
+      }, { once: true });
+    } else {
+      mediaEl = document.createElement('img');
+      mediaEl.src = displaySrc;
+      mediaEl.loading = 'lazy';
+      mediaEl.addEventListener('load', () => {
+        if (mediaEl.naturalWidth && mediaEl.naturalHeight) {
+          const realRatio = mediaEl.naturalWidth / mediaEl.naturalHeight;
+          photo.style.height = (colWidth / realRatio) + 'px';
+        }
+      }, { once: true });
+    }
+    photo.appendChild(mediaEl);
+
+    const metaRow = document.createElement('div');
+    metaRow.className = 'meta';
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = padNum(item.num);
+    metaRow.appendChild(num);
+
+    if (item.project) {
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = PROJECT_COLORS[item.project];
+      metaRow.appendChild(dot);
+    }
+
+    cell.appendChild(photo);
+    cell.appendChild(metaRow);
+
+    if (mode === 'project' && !window.matchMedia('(max-width: 640px)').matches) {
+      cell.addEventListener('click', () => openLightbox(displaySrc));
+    }
+
+    return cell;
+  }
+
+  // Layout "de un solo golpe" (usado para modo proyecto: set fijo, sin scroll infinito)
+  function layoutGrid(items) {
+    gallery.innerHTML = '';
+    const cols = getCols();
+    const gap = getGap();
+    const containerWidth = gallery.clientWidth - gap * 2;
+    const colWidth = (containerWidth - gap * (cols - 1)) / cols;
+
+    colEls = [];
+    colHeights = [];
+    for (let i = 0; i < cols; i++) {
+      const col = document.createElement('div');
+      col.className = 'col';
+      gallery.appendChild(col);
+      colEls.push(col);
+      colHeights.push(0);
+    }
+
+    items.forEach(item => {
+      let shortest = 0;
+      for (let i = 1; i < cols; i++) {
+        if (colHeights[i] < colHeights[shortest]) shortest = i;
+      }
+      const colWidthNow = colWidth;
+      const cell = createCell(item, colWidthNow, true);
+      colEls[shortest].appendChild(cell);
+      colHeights[shortest] += (colWidthNow / item.ratio) + 20 + gap;
+    });
+  }
+
+  // ---- HOME: scroll infinito ----
+  function initHomeGrid() {
+    gallery.innerHTML = '';
+    const cols = getCols();
+    colEls = [];
+    colHeights = [];
+    for (let i = 0; i < cols; i++) {
+      const col = document.createElement('div');
+      col.className = 'col';
+      gallery.appendChild(col);
+      colEls.push(col);
+      colHeights.push(0);
+    }
+    homeBatchesLoaded = 0;
+    appendHomeBatch();
+    appendHomeBatch(); // cargamos dos tandas de inicio para que ya haya margen de scroll
+  }
+
+  function appendHomeBatch() {
+    const cols = getCols();
+    const gap = getGap();
+    const containerWidth = gallery.clientWidth - gap * 2;
+    const colWidth = (containerWidth - gap * (cols - 1)) / cols;
+
+    homeOrder.forEach(item => {
+      let shortest = 0;
+      for (let i = 1; i < cols; i++) {
+        if (colHeights[i] < colHeights[shortest]) shortest = i;
+      }
+      const cell = createCell(item, colWidth, false);
+      colEls[shortest].appendChild(cell);
+      colHeights[shortest] += (colWidth / item.ratio) + 20 + gap;
+    });
+    homeBatchesLoaded++;
+  }
+
+  const MAX_HOME_BATCHES = 4; // tope de "vueltas" cargadas antes de dejar de crecer
+
+  function checkInfiniteScroll() {
+    if (mode !== 'home') return;
+    if (homeBatchesLoaded >= MAX_HOME_BATCHES) return;
+    const scrollBottom = window.scrollY + window.innerHeight;
+    const docHeight = document.documentElement.scrollHeight;
+    if (scrollBottom > docHeight - 1200) {
+      appendHomeBatch();
+    }
+  }
+  window.addEventListener('scroll', checkInfiniteScroll);
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (mode === 'home') {
+        initHomeGrid();
+      } else {
+        layoutGrid(currentSet);
+      }
+    }, 150);
+  });
+
+  // ---- LIGHTBOX (solo en modo proyecto) ----
+  const lightboxBackdrop = document.getElementById('lightboxBackdrop');
+
+  // ---- TOOLTIP DE TITULO AL PASAR EL CURSOR SOBRE UNA FOTO ----
+  const photoTooltip = document.getElementById('photoTooltip');
+  const TOOLTIP_OFFSET_X = 18;
+
+  gallery.addEventListener('mousemove', (e) => {
+    if (!galleryWrap.classList.contains('revealed')) return;
+    const photoEl = e.target.closest('.photo');
+    if (!photoEl) {
+      photoTooltip.classList.remove('visible');
+      return;
+    }
+    const cell = photoEl.closest('.cell');
+    const title = cell ? cell.dataset.title : '';
+    if (!title) {
+      photoTooltip.classList.remove('visible');
+      return;
+    }
+    photoTooltip.textContent = title;
+    photoTooltip.style.transform = `translate(${e.clientX + TOOLTIP_OFFSET_X}px, ${e.clientY - 12}px)`;
+    photoTooltip.classList.add('visible');
+  });
+
+  gallery.addEventListener('mouseleave', () => {
+    photoTooltip.classList.remove('visible');
+  });
+  const lightboxImg = document.getElementById('lightboxImg');
+
+  function openLightbox(src) {
+    lightboxImg.src = src;
+    lightboxBackdrop.classList.add('open');
+    pageContent.classList.add('blurred');
+  }
+  function closeLightbox() {
+    lightboxBackdrop.classList.remove('open');
+    pageContent.classList.remove('blurred');
+  }
+  lightboxBackdrop.addEventListener('click', (e) => {
+    if (e.target === lightboxBackdrop) closeLightbox();
+  });
+
+  // ---- VENTANA MACOS ----
+  const macWindow = document.getElementById('macWindow');
+  const titlebar = document.getElementById('macTitlebar');
+  const loadingBody = document.getElementById('loadingBody');
+  const barcodeBtn = document.getElementById('barcodeBtn');
+  const darkToggle = document.getElementById('darkToggle');
+  const counterEl = document.getElementById('counter');
+  const counterLabel = counterEl.querySelector('.counter-label');
+
+  const COUNTING_TEXT = 'AND COUNTING';
+  function typeLoop() {
+    let i = 0;
+    function step() {
+      if (i <= COUNTING_TEXT.length) {
+        counterLabel.textContent = COUNTING_TEXT.slice(0, i);
+        i++;
+        setTimeout(step, 90);
+      } else {
+        setTimeout(typeLoop, 1000);
+      }
+    }
+    step();
+  }
+  typeLoop();
+
+  darkToggle.addEventListener('click', () => {
+    const isLight = document.documentElement.classList.toggle('light-mode');
+    darkToggle.textContent = isLight ? '●' : '○';
+  });
+
+  titlebar.addEventListener('click', () => {
+    macWindow.classList.toggle('collapsed');
+  });
+
+  // Loading
+  const loadingLines = [
+    '<span class="tok-com">$ build --portfolio</span>',
+    'import { grid, shuffle } from "./portfolio";',
+    '<span class="tok-com">// inicializando entorno</span>',
+    'const library = loadImages("/assets");',
+    'fetch("library.json") <span class="tok-com">// 98 assets</span>',
+    'const visible = pickRandom(library);',
+    'buildGrid(visible, { cols: 12 });',
+    'attachEvents("shuffle", "window");',
+    'const win = new MacWindow({ state: "base" });',
+    'applyStyles("Space Grotesk", "Inter");',
+    'render();',
+    '<span class="tok-com">// listo</span>'
+  ];
+
+  function runLoading() {
+    let i = 0;
+    function typeLine() {
+      if (i >= loadingLines.length) { finishLoading(); return; }
+      loadingBody.innerHTML += (i > 0 ? '\n' : '') + loadingLines[i];
+      i++;
+      setTimeout(typeLine, 400);
+    }
+    typeLine();
+  }
+
+  function finishLoading() {
+    setTimeout(() => {
+      macWindow.classList.remove('show-loading');
+      galleryWrap.classList.add('revealed');
+      darkToggle.classList.add('visible');
+      counterEl.classList.add('visible');
+      barcodeBtn.classList.add('visible');
+    }, 400);
+  }
+
+  // CV
+  document.getElementById('openCV').addEventListener('click', (e) => {
+    e.preventDefault();
+    macWindow.classList.add('show-cv');
+  });
+  document.getElementById('closeCV').addEventListener('click', (e) => {
+    e.preventDefault();
+    macWindow.classList.remove('show-cv');
+  });
+
+  // Proyectos: construir enlaces dinamicamente con su punto de color
+  const projectLinksWrap = document.getElementById('projectLinksWrap');
+  Object.keys(PROJECTS_META).forEach(pid => {
+    const meta = PROJECTS_META[pid];
+    const a = document.createElement('a');
+    a.href = '#';
+    const dot = document.createElement('span');
+    dot.className = 'project-dot';
+    dot.style.background = PROJECT_COLORS[pid];
+    a.appendChild(dot);
+    a.appendChild(document.createTextNode(meta.title));
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      openProject(pid);
+    });
+    projectLinksWrap.appendChild(a);
+  });
+
+  function openProject(pid) {
+    const meta = PROJECTS_META[pid];
+    document.getElementById('projectTitle').textContent = meta.title;
+    document.getElementById('projYear').textContent = meta.year;
+    document.getElementById('projRol').textContent = meta.rol;
+    document.getElementById('projDesc').textContent = meta.desc;
+    macWindow.classList.remove('show-cv');
+    macWindow.classList.add('show-project');
+
+    mode = 'project';
+    activeProject = pid;
+    document.body.classList.add('mode-project');
+    currentSet = LIBRARY.filter(img => String(img.project) === String(pid));
+    layoutGrid(currentSet);
+  }
+
+  function goHome() {
+    macWindow.classList.remove('show-project');
+    mode = 'home';
+    activeProject = null;
+    document.body.classList.remove('mode-project');
+    closeLightbox();
+    initHomeGrid();
+  }
+
+  document.getElementById('closeProject').addEventListener('click', (e) => {
+    e.preventDefault();
+    goHome();
+  });
+
+  // ---- INIT ----
+  homeOrder = shuffleArray(LIBRARY);
+  initHomeGrid();
+  runLoading();
+</script>
+
+</body>
+</html>
